@@ -1,2 +1,11 @@
 # chat-app-100x
-simple chat app with advanced slash cmd and rem feature and text to emoji  and number of live user 
+
+/help - Display help message
+/clear - Clear the message area
+/random - Generates Random Number
+/calc - Calculator
+/rem [name] [value] - To Save Value
+/rem [name] -Recall Value
+hello = 👋, world = 🌎, hey =👋, :)= 🙂,:( = 😞,:D = 😄, hug =🫂, heart=❤️
+
+and live user count
