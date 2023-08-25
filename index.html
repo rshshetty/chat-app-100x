@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ 
+    <title>Chat Application</title>
+    <style>
+        body {
+            padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+}
+
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 20% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 50%;
+}
+
+
+.chat-container {
+    min-width: 100%;
+   
+    /* max-width: 600px; */
+    margin: 20px auto;
+    background-color: #fff;
+    border-radius: 10px;
+    
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.chat-header {
+    padding: 15px;
+    background-color: #075e54;
+    color: #fff;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+}
+
+.chat-messages {
+    padding: 15px;
+    overflow-y: scroll;
+    /* max-height: 400px; */
+    height: 65vh;
+    /* max-height: 68vh; */
+}
+
+.message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    max-width: 80%;
+   
+}
+
+.incoming {
+    background-color: #f4f4f4;
+}
+
+.outgoing {
+    background-color: #dcf8c6;
+    align-self: flex-end;
+}
+.username{
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    align-items: center; /* Center items horizontally */
+    justify-content: flex-start; /* Align items to the top vertically */
+   /* Set the height of the container */
+    background-color: none;
+    margin: 0;
+    padding: 0;
+    color: grey;
+}
+.chat-input {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border-top: 1px solid #ccc;
+}
+
+.chat-input input[type="text"] {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.chat-input button {
+    margin-left: 10px;
+    padding: 10px 20px;
+    background-color: #075e54;
+    color: #fff;
+    border: none;
+    border-radius: 25px; /* Increased border radius for a smoother appearance */
+    font-size: 16px; /* Adjust font size for better readability */
+    font-weight: bold; /* Add some boldness to the text */
+    text-transform: uppercase; /* Convert text to uppercase for emphasis */
+    letter-spacing: 1px; /* Add a little letter spacing for better visual balance */
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transitions */
+    cursor: pointer;
+}
+
+.chat-input button:hover {
+    background-color: #0c7d68; /* Darker shade on hover for visual feedback */
+    transform: scale(1.05); /* Slight scale increase for a subtle hover effect */
+}
+/* Media Query for Responsiveness */
+@media (max-width: 768px) {
+    .chat-container {
+        max-width: 100%;
+        border-radius: 0;
+    }
+}
+
+
+  @keyframes shake {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-5px);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translateX(5px);
+    }
+}
+
+.shake {
+    animation: shake 0.5s;
+}
+
+.popup {
+    position: fixed;
+    top: 50%;  /* Center vertically */
+    left: 50%; /* Center horizontally */
+    transform: translate(-50%, -50%);
+    background-color: #f2f2f2;
+    padding: 20px 20px;
+    height: 350px;
+    width: 500px;
+    border-radius: 5px;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+    z-index: 999;
+}
+
+    </style>
+
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>WhatsApp Chat</h1>
+        </div>
+        <div class="user-count">Users: 0</div>
+        <div class="chat-messages">
+            <div class="message incoming">
+                <p>Hello there!</p>
+            </div>
+            <div class="message outgoing">
+                <p>Hi! How are you?</p>
+            </div>
+
+        </div>
+        <div class="chat-input">
+            <input type="text" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
+        </div>
+        <div id="usernameModal" class="modal">
+            <div class="modal-content">
+            
+                <p>Enter your username:</p>
+                <input type="text" id="usernameInput" placeholder="Username">
+                <button id="usernameSubmit">Submit</button>
+            </div>
+    </div>
+
+
+
+
+ <script src="/socket.io/socket.io.js"></script>
+  <script>
+let usereCount = 0;
+
+// Function to update user count display
+function updateUserCount() {
+    const userCountElement = document.querySelector('.user-count');
+    userCountElement.textContent = `Users: ${userCount}`;
+}
+const remValues = {};
+
+const emojiMap = {
+    "hello": "👋",
+    "world": "🌎",
+    "hey": "👋",
+    ":)" :"😃",
+    ":(":"😞",
+    ":D" :"😄",
+    "hug" :"🫂",
+   "heart":"❤️"
+};
+    const socket = io();
+
+
+    //xx
+    // Open the username modal when the page loads
+    const modal = document.getElementById('usernameModal');
+    modal.style.display = 'block';
+
+    const usernameSubmit = document.getElementById('usernameSubmit');
+    usernameSubmit.addEventListener('click', () => {
+        const usernameInput = document.getElementById('usernameInput');
+        const username = usernameInput.value.trim();
+
+        if (username !== '') {
+            modal.style.display = 'none';
+console.log(username)
+            // Send the username to the server to join the chat
+            socket.emit('join', { text: username, type: 'outgoing' });
+
+        }
+    });
+
+
+
+
+let sendButton =document.getElementById('sendButton')
+if (sendButton) {
+    console.log('Send button is captured.');
+} else {
+    console.log('Send button is not captured.');
+}
+
+    // Handle sending messages
+    sendButton.addEventListener('click', () => {
+      const input = document.querySelector('.chat-input input');
+      let message = input.value.trim();
+     
+
+      if (message !== '') {
+        if (message === "/help") 
+        {showPopup();
+        input.value = '';}
+        else if (message === "/clear")
+        
+    {
+        clearChatMessages();
+        input.value = ''
+       }  else if (message === "/random") {
+        const randomNumber = generateRandomNumber();
+  
+
+        input.value = '';
+        
+    } 
+    else if (message.startsWith("/rem")) {
+        handleRemCommand(message);
+        input.value = '';
+    }
+    else if (message.startsWith("/calc")) {
+        handleCalcCommand(message);
+        input.value = '';
+    }
+    else {
+        //  console.log('Sending message:', message); 
+        const words = message.split(" ");
+         message = words.map(word => emojiMap[word] || word).join(" ");
+        socket.emit('message', { text: message, type: 'outgoing' });
+     
+        input.value = '';
+        }
+        
+      }
+    });
+
+    function showPopup(message) {
+    const popup = document.createElement("div");
+    popup.classList.add("popup");
+
+    const content = document.createElement("div");
+    content.innerHTML = `
+        <h4>/help - Display help message</h4>
+        <h4>/clear - Clear the message area</h4>
+        <h4>/random - Generates Random Number</h4>
+        <h4>/calc - Calculator</h4>
+        <h4>/rem [name] [value] - To Save Value</h4>
+            <h4>/rem [name] -Recall Value</h4>
+                <h4>hello = 👋,
+                         world = 🌎,
+                          hey =👋,
+                          :) = 😃,
+                        :( = 😞,
+                        :D = 😄,
+                        hug =🫂,
+                        heart=❤️</h4>
+    `;
+
+    const closeButton = document.createElement("button");
+    closeButton.textContent = "Close";
+    closeButton.addEventListener("click", () => {
+        popup.remove();
+    });
+
+    popup.appendChild(content);
+    popup.appendChild(closeButton);
+    
+    document.body.appendChild(popup);
+}
+
+//clear chat 
+function clearChatMessages() {
+    const chatMessages = document.querySelector('.chat-messages');
+    chatMessages.innerHTML = ''; // Clear the chat messages
+}
+
+//generate random number 
+function generateRandomNumber() {
+     let randomNumber=Math.floor(Math.random() * 100) + 1; // Generates a random number between 1 and 100
+     displayMessage(`Generated random number: ${randomNumber}`)
+}
+
+//rem 
+
+function handleRemCommand(message) {
+    const parts = message.split(" ");
+    if (parts.length === 3 && parts[0] === "/rem") {
+        const key = parts[1];
+        const value = parts[2];
+        remValues[key] = value;
+        displayMessage(`Value "${value}" stored with key "${key}"`);
+    } else if (parts.length === 2 && parts[0] === "/rem") {
+        const key = parts[1];
+        const recalledValue = remValues[key];
+        if (recalledValue) {
+            displayMessage(`${recalledValue}`);
+        } else {
+            displayMessage(`No value found for key "${key}"`);
+        }
+    }
+}
+
+
+
+//cal
+function handleCalcCommand(message) {
+    const parts = message.split(" ");
+    if (parts.length >= 2 && parts[0] === "/calc") {
+        const expression = parts.slice(1).join(" ");
+        try {
+            const result = eval(expression);
+            displayMessage(`${result}`);
+        } catch (error) {
+            displayMessage(`Error: Invalid expression`);
+        }
+    }
+}
+
+    // Handle receiving messages
+    socket.on('message', (data) => {
+        console.log("datas ", data)
+      const chatMessages = document.querySelector('.chat-messages');
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('message', data.type);
+      messageDiv.innerHTML = `<p>${data.text}</p>`;
+      chatMessages.appendChild(messageDiv);
+    });
+
+
+    socket.on('join', (username) => {
+    console.log("username", username);
+    const chatMessages = document.querySelector('.chat-messages');
+    const messageDiv = document.createElement('aside');
+    messageDiv.classList.add('username');
+    messageDiv.innerHTML = `<p >${username.text} joined the chat</p>`;
+    chatMessages.appendChild(messageDiv);
+});
+
+
+
+// Listen for the connectionCount event and update the UI
+socket.on('connectionCount', (count) => {
+  const userCountElement = document.querySelector('.user-count');
+  userCountElement.textContent = `Users connected: ${count}`;
+});
+
+
+
+//display message 
+
+function displayMessage(message) {
+    const chatMessages = document.querySelector('.chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message outgoing';
+    messageDiv.innerHTML = `<p>${message}</p>`;
+    chatMessages.appendChild(messageDiv);
+}
+
+
+
+
+
+  </script>
+
+</body>
+</html>
